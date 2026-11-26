@@ -1,0 +1,125 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Reusable Hardened Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    // 3. Entity Validation Blueprint (Anti-Update-Gap)
+    function isValidLeaderboardEntry(data) {
+      return data.keys().hasAll([
+          'userId',
+          'playerName',
+          'score',
+          'distance',
+          'crystals',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId',
+          'playerName',
+          'score',
+          'distance',
+          'crystals',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && data.playerName is string
+        && data.playerName.size() >= 1
+        && data.playerName.size() <= 24
+        && data.playerName.matches('^[a-zA-Z0-9äöüÄÖÜß ._\\-]+$')
+        && data.score is int
+        && data.score >= 0
+        && data.score <= 10000000
+        && data.distance is int
+        && data.distance >= 0
+        && data.distance <= 5000000
+        && data.crystals is int
+        && data.crystals >= 0
+        && data.crystals <= 1000000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // 4. Public Leaderboard Collection (No PII)
+    match /leaderboard/{userId} {
+      // Single-doc read validates path ID and entry shape (handles non-existent doc checks safely)
+      allow get: if isValidId(userId)
+        && (
+          resource == null
+          || (existing().score is int && existing().score >= 0 && existing().playerName is string)
+        );
+
+      allow list: if resource.data.score >= 0;
+
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidLeaderboardEntry(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidLeaderboardEntry(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Record a new personal high score (score cannot decrease)
+          (
+            incoming().score >= existing().score
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'playerName',
+              'score',
+              'distance',
+              'crystals',
+              'updatedAt'
+            ])
+          )
+          ||
+          // Action 2: Update display nickname without changing score stats
+          (
+            incoming().score == existing().score
+            && incoming().distance == existing().distance
+            && incoming().crystals == existing().crystals
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'playerName',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+  }
+}

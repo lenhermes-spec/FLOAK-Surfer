@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    background-color: #0b1320;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  canvas {
+    display: block;
+    touch-action: none;
+  }
+}
+
+.font-mono-numbers {
+  font-family: 'Space Grotesk', monospace;
+  font-variant-numeric: tabular-nums;
+}

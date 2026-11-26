@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Public high-score entry for a verified player in Floaki Winter Surfer (no PII stored).",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the player owning this leaderboard entry.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "playerName": {
+          "type": "string",
+          "description": "Public display nickname shown on the leaderboard.",
+          "minLength": 1,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9äöüÄÖÜß ._\\-]+$"
+        },
+        "score": {
+          "type": "integer",
+          "description": "Player's highest run score achieved."
+        },
+        "distance": {
+          "type": "integer",
+          "description": "Distance in meters of the best run."
+        },
+        "crystals": {
+          "type": "integer",
+          "description": "Crystals collected during the best run."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the player first joined the leaderboard."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last high-score or nickname update."
+        }
+      },
+      "required": [
+        "userId",
+        "playerName",
+        "score",
+        "distance",
+        "crystals",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/leaderboard/{userId}": {
+      "schema": { "$ref": "#/entities/LeaderboardEntry" },
+      "description": "Stores each player's personal best leaderboard record, keyed by their Firebase Auth UID."
+    }
+  }
+}
